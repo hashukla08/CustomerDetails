@@ -29,9 +29,10 @@ namespace CustomerDetails.API.DataAccess.Repository
 		}
 
 
-		public void Remove(T entity)
+		public async Task RemoveAsync(T entity)
 		{
-			_db.Remove(entity);
+		    _db.Remove(entity);
+			await SaveAsync();
 		}
 
 		public async Task SaveAsync()

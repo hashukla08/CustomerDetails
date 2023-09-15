@@ -1,5 +1,7 @@
 ﻿using CustomerDetails.API.DataAccess.Models;
+using CustomerDetails.BusinessLogic.Interface;
 using Newtonsoft.Json;
+using System.Net.Http;
 using System.Text;
 
 namespace CustomerDetails.API.Services

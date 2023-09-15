@@ -1,18 +1,21 @@
 ﻿using CustomerDetails.API.DataAccess.Models;
-using System.Net.Http;
+using CustomerDetails.BusinessLogic.Interface;
+using Microsoft.Extensions.Configuration;
 
 namespace CustomerDetails.API.Services
 {
-	public class ProfilePictureService :BaseService, IProfilePictureService
+	public class ProfilePictureService : BaseService, IProfilePictureService
 	{
-		private readonly IHttpClientFactory _httpClient;
 		private readonly string? serviceUrl;
-		public ProfilePictureService(IHttpClientFactory httpClient, IConfiguration configuration) : base(httpClient)
-		{
-			_httpClient = httpClient;
-			serviceUrl = configuration.GetValue<string>("ServiceURL:UIAvatar");
 
+		public ProfilePictureService(
+			IHttpClientFactory httpClient,
+			IConfiguration configuration)
+			: base(httpClient)
+		{
+			serviceUrl = configuration.GetValue<string>("UIAvatar:BaseUrl");
 		}
+
 		public async Task<string> GetProfilePictureAsync(string CustomerName)
 		{
 			var builder = new UriBuilder(serviceUrl);

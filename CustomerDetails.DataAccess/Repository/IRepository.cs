@@ -8,7 +8,7 @@ namespace CustomerDetails.API.DataAccess.Repository
 		Task CreateAsync(T entity);
 		Task<IEnumerable<T>> GetAllAsync();
 		
-		void Remove(T entity);
+		Task RemoveAsync(T entity);
 	    Task SaveAsync();
 		
 	}
