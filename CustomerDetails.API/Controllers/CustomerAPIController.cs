@@ -2,7 +2,6 @@
 using CustomerDetails.API.DataAccess.DTO;
 using CustomerDetails.API.DataAccess.Entities;
 using CustomerDetails.API.DataAccess.Models;
-using CustomerDetails.API.DataAccess.Repository;
 using CustomerDetails.BusinessLogic.Interface;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
@@ -64,7 +63,7 @@ namespace CustomerDetails.API.Controllers
 
 					return Ok(customers);
 				}
-				
+
 				else if (Guid.TryParse(idOrAge, out Guid customerId))
 				{
 					var customer = await _customerService.GetCustomerByIdAsync(customerId);
@@ -105,7 +104,7 @@ namespace CustomerDetails.API.Controllers
 				}
 
 				Regex regex = new Regex(@"^[A-Za-z]+( [A-Za-z]+)*$");
-				if(!regex.IsMatch(createRequest.CustomerName))
+				if (!regex.IsMatch(createRequest.CustomerName))
 				{
 					_response.ErrorMessage.Add("Customer Name cannot have special characters, numbers, leading and trailing spaces and allows one blank space between words.");
 				}
@@ -116,7 +115,7 @@ namespace CustomerDetails.API.Controllers
 				{
 					_response.ErrorMessage.Add("Customer Date of Birth cannot be null or empty. Please use ISO8601 date format only.");
 				}
-				else if(!DateOnly.TryParse(createRequest.DateOfBirth, out dob))
+				else if (!DateOnly.TryParse(createRequest.DateOfBirth, out dob))
 				{
 					_response.ErrorMessage.Add("Invalid Date Format. Please use ISO8601 date format only.");
 				}
@@ -187,42 +186,6 @@ namespace CustomerDetails.API.Controllers
 			}
 			return _response;
 
-		}
-		
-		[HttpDelete]
-		//[ProducesResponseType(StatusCodes.Status204NoContent)] //TODO
-		//[ProducesResponseType(StatusCodes.Status400BadRequest)] //TODO
-		//[ProducesResponseType(StatusCodes.Status404NotFound)] //TODO
-		public async Task<ActionResult<APIResponse>> DeleteCustomer(Guid CustomerId)
-		{
-			try
-			{
-				if (CustomerId == Guid.Empty)
-				{
-					_response.StatusCode = HttpStatusCode.BadRequest;
-					return _response;
-
-				}
-				var customer = await _customerService.GetCustomerByIdAsync(CustomerId);
-
-				if (customer == null)
-				{
-					_response.StatusCode = HttpStatusCode.NotFound;
-					return _response;
-				}
-
-				await _customerService.RemoveCustomerAsync(customer);
-
-				_response.StatusCode = HttpStatusCode.OK;
-				_response.IsSuccess = true;
-				return Ok(_response);
-			}
-			catch (Exception ex)
-			{
-				_response.IsSuccess = false;
-				_response.ErrorMessage = new List<string> { ex.ToString() };
-			}
-			return _response;
 		}
 	}
 }
