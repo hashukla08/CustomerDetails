@@ -89,11 +89,6 @@ namespace CustomerDetails.API.Tests.BusinessLogic.Services
 		}
 
 
-		[Fact]
-		public async Task GetCustomerById_Pass()
-		{
-			//Arrange
-			
-		}
+		
 	}
 }
