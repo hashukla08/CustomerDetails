@@ -2,6 +2,6 @@
 {
     public interface IProfilePictureService
     {
-        Task<string> GetProfilePictureAsync(string CustomerName);
+        Task<string> GetBase64EncodedSvgProfilePictureAsync(string customerName);
     }
 }

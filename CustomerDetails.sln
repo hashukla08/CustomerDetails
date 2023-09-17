@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerDetails.DataAccess"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerDetails.BusinessLogic", "CustomerDetails.BusinessLogic\CustomerDetails.BusinessLogic.csproj", "{287EB5DF-EEE7-4342-A42E-570541C0B1F4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerDetails.API.Tests", "CustomerDetails.API.Tests\CustomerDetails.API.Tests.csproj", "{1AE074C3-321C-40C3-9B40-A48C24E8689C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{287EB5DF-EEE7-4342-A42E-570541C0B1F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{287EB5DF-EEE7-4342-A42E-570541C0B1F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{287EB5DF-EEE7-4342-A42E-570541C0B1F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AE074C3-321C-40C3-9B40-A48C24E8689C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AE074C3-321C-40C3-9B40-A48C24E8689C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AE074C3-321C-40C3-9B40-A48C24E8689C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AE074C3-321C-40C3-9B40-A48C24E8689C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

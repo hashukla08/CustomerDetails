@@ -14,13 +14,12 @@ namespace CustomerDetails.API.DataAccess.Repository
 			_db = Db;
 			this.DbSet = _db.Set<T>();
 		}
+
 		public async Task CreateAsync(T entity)
 		{
 			await DbSet.AddAsync(entity);
 			await SaveAsync();
 		}
-		
-
 
 		public async Task<IEnumerable<T>> GetAllAsync()
 		{

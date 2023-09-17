@@ -7,6 +7,7 @@ using CustomerDetails.BusinessLogic.Interface;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace CustomerDetails.API.Controllers
 {
@@ -14,17 +15,17 @@ namespace CustomerDetails.API.Controllers
 	[ApiController]
 	public class CustomerAPIController : ControllerBase
 	{
-		private readonly ICustomerRepository _repository;
+		private readonly ICustomerService _customerService;
 		private readonly IMapper _mapper;
 		protected APIResponse _response;
 		private readonly IProfilePictureService _pictureService;
 
-		public CustomerAPIController(ICustomerRepository repository, IMapper mapper, IProfilePictureService pictureService)
+		public CustomerAPIController(ICustomerService customerService, IMapper mapper, IProfilePictureService pictureService)
 		{
-			_repository = repository;
+			_customerService = customerService;
 			_mapper = mapper;
 			_pictureService = pictureService;
-			this._response = new APIResponse();
+			_response = new APIResponse();
 
 		}
 		[HttpGet]
@@ -32,7 +33,7 @@ namespace CustomerDetails.API.Controllers
 		{
 			try
 			{
-				IEnumerable<Customer> getAllCustomers = await _repository.GetAllAsync();
+				IEnumerable<Customer> getAllCustomers = await _customerService.GetAllAsync();
 				_response.StatusCode = HttpStatusCode.OK;
 				_response.Result = getAllCustomers;
 				return Ok(_response);
@@ -53,7 +54,7 @@ namespace CustomerDetails.API.Controllers
 				if (int.TryParse(idOrAge, out int age))
 				{
 
-					IEnumerable<Customer> customers = await _repository.GetAsync(age);
+					IEnumerable<Customer> customers = await _customerService.GetCustomersByAgeAsync(age);
 
 					if (customers == null || customers.Count() == 0)
 					{
@@ -66,7 +67,7 @@ namespace CustomerDetails.API.Controllers
 				
 				else if (Guid.TryParse(idOrAge, out Guid customerId))
 				{
-					Customer customer = await _repository.GetAsync(customerId);
+					var customer = await _customerService.GetCustomerByIdAsync(customerId);
 
 					if (customer == null)
 					{
@@ -91,28 +92,63 @@ namespace CustomerDetails.API.Controllers
 
 
 		[HttpPost]
-		public async Task<ActionResult<APIResponse>> CreateCustomer([FromBody] CreateCustomerDTO createDTO)
+		public async Task<ActionResult<APIResponse>> CreateCustomer([FromBody] CreateCustomerRequest createRequest)
 		{
 			try
 			{
-				if (createDTO == null)
+				if (createRequest is null)
 				{
+					_response.ErrorMessage.Add("Request cannot be null.");
+					_response.IsSuccess = false;
 					_response.StatusCode = HttpStatusCode.BadRequest;
 					return _response;
 				}
 
+				Regex regex = new Regex(@"^[A-Za-z]+( [A-Za-z]+)*$");
+				if(!regex.IsMatch(createRequest.CustomerName))
+				{
+					_response.ErrorMessage.Add("Customer Name cannot have special characters, numbers, leading and trailing spaces and allows one blank space between words.");
+				}
 
-				Customer customer = _mapper.Map<Customer>(createDTO);
+				DateOnly dob = new DateOnly();
 
-				await _repository.CreateAsync(customer);				
-				await UpdateCustomerProfilePictureAsync(customer);
+				if (string.IsNullOrWhiteSpace(createRequest.DateOfBirth))
+				{
+					_response.ErrorMessage.Add("Customer Date of Birth cannot be null or empty. Please use ISO8601 date format only.");
+				}
+				else if(!DateOnly.TryParse(createRequest.DateOfBirth, out dob))
+				{
+					_response.ErrorMessage.Add("Invalid Date Format. Please use ISO8601 date format only.");
+				}
+
+				if (_response.ErrorMessage.Any())
+				{
+					_response.IsSuccess = false;
+					_response.StatusCode = HttpStatusCode.BadRequest;
+					return _response;
+				}
+
+				Customer customer = new Customer { CustomerName = createRequest.CustomerName, DateOfBirth = dob };
+
+				try
+				{
+					customer.ProfileImage = await _pictureService.GetBase64EncodedSvgProfilePictureAsync(customer.CustomerName);
+				}
+				catch (Exception)
+				{
+					throw;
+				}
+
+				await _customerService.AddCustomerAsync(customer);
+
 				_response.Result = _mapper.Map<CustomerDTO>(customer);
 				_response.StatusCode = HttpStatusCode.Created;
 			}
 			catch (Exception ex)
 			{
 				_response.IsSuccess = false;
-				_response.ErrorMessage = new List<string> { ex.ToString() };
+				string message = "Exception Occured - " + ex.Message;
+				_response.ErrorMessage.Add(message);
 			}
 			return _response;
 		}
@@ -128,7 +164,7 @@ namespace CustomerDetails.API.Controllers
 					return _response;
 				}
 
-				var customer = await _repository.GetAsync(id);
+				var customer = await _customerService.GetCustomerByIdAsync(id);
 
 				if (customer == null)
 				{
@@ -139,7 +175,7 @@ namespace CustomerDetails.API.Controllers
 				updatedCustomerDetails.ApplyTo(updateCustomer);
 
 				Customer customerPatch = _mapper.Map<Customer>(updateCustomer);
-				await _repository.UpdateAsync(customerPatch);
+				await _customerService.UpdateAsync(customerPatch);
 
 
 				return NoContent();
@@ -152,23 +188,11 @@ namespace CustomerDetails.API.Controllers
 			return _response;
 
 		}
-		private async Task UpdateCustomerProfilePictureAsync(Customer customer)
-		{
-
-			var svgData=await _pictureService.GetProfilePictureAsync(customer.CustomerName);
-
-			byte[] dataBytes = System.Text.Encoding.UTF8.GetBytes(svgData);
-			string profilePicture = Convert.ToBase64String(dataBytes);
-
-			customer.ProfileImage = profilePicture;
-			await _repository.UpdateAsync(customer);
-			
-		}
-
+		
 		[HttpDelete]
-		//[ProducesResponseType(StatusCodes.Status204NoContent)]
-		//[ProducesResponseType(StatusCodes.Status400BadRequest)]
-		//[ProducesResponseType(StatusCodes.Status404NotFound)]
+		//[ProducesResponseType(StatusCodes.Status204NoContent)] //TODO
+		//[ProducesResponseType(StatusCodes.Status400BadRequest)] //TODO
+		//[ProducesResponseType(StatusCodes.Status404NotFound)] //TODO
 		public async Task<ActionResult<APIResponse>> DeleteCustomer(Guid CustomerId)
 		{
 			try
@@ -179,7 +203,7 @@ namespace CustomerDetails.API.Controllers
 					return _response;
 
 				}
-				var customer = await _repository.GetAsync(CustomerId);
+				var customer = await _customerService.GetCustomerByIdAsync(CustomerId);
 
 				if (customer == null)
 				{
@@ -187,7 +211,7 @@ namespace CustomerDetails.API.Controllers
 					return _response;
 				}
 
-				await _repository.RemoveAsync(customer);
+				await _customerService.RemoveCustomerAsync(customer);
 
 				_response.StatusCode = HttpStatusCode.OK;
 				_response.IsSuccess = true;
@@ -200,6 +224,5 @@ namespace CustomerDetails.API.Controllers
 			}
 			return _response;
 		}
-
 	}
 }

@@ -6,30 +6,38 @@ using System.Collections.Generic;
 
 namespace CustomerDetails.API.DataAccess.Repository
 {
-	public class CustomerRespository : Repository<Customer>, ICustomerRepository
+	public class CustomerRepository : Repository<Customer>, ICustomerRepository
 	{
 		private readonly ApplicationDBContext _db;
-		public CustomerRespository(ApplicationDBContext Db) : base(Db)
+		public CustomerRepository(ApplicationDBContext Db) : base(Db)
 		{
 			_db=Db;
 		}
 		
 
-		public async Task<Customer> UpdateAsync(Customer customer)
+		public async Task<bool> UpdateAsync(Customer customer)
 		{
-		    _db.Customers.Update(customer);
-			await _db.SaveChangesAsync();
-			return customer;
+			try
+			{
+				_db.Customers.Update(customer);
+				await _db.SaveChangesAsync();
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+			
 			
 		}
 
-		public async Task<IEnumerable<Customer>> GetAsync(int age)
+		public async Task<IEnumerable<Customer>> GetCustomersByAgeAsync(int age)
 		{
 			DateOnly CustomerBirthYear = DateOnly.FromDateTime(DateTime.Today.AddYears(-age)); ;
 			return await _db.Customers.Where(customer => customer.DateOfBirth == CustomerBirthYear).ToListAsync();
 
 		}
-		public async Task<Customer?> GetAsync(Guid id)
+		public async Task<Customer?> GetCustomerByIdAsync(Guid id)
 		{
 			return await _db.Customers.Where(customer => customer.CustomerId == id).AsNoTracking().FirstOrDefaultAsync();
 		}

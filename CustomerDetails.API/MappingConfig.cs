@@ -10,8 +10,8 @@ namespace CustomerDetails.API.DataAccess.Models
         public MappingConfig()
         {
 			CreateMap<Customer, CustomerDTO>().ReverseMap();
-			CreateMap<Customer, CreateCustomerDTO>().ReverseMap();
-			CreateMap<CustomerDTO, CreateCustomerDTO>().ReverseMap();
+			CreateMap<Customer, CreateCustomerRequest>().ReverseMap();
+			CreateMap<CustomerDTO, CreateCustomerRequest>().ReverseMap();
 
 			
 			CreateMap<Customer, UpdateCustomerDTO>().ReverseMap();

@@ -1,11 +1,6 @@
-﻿using CustomerDetails.API.Services;
-using CustomerDetails.BusinessLogic.Interface;
+﻿using CustomerDetails.BusinessLogic.Interface;
+using CustomerDetails.BusinessLogic.Services;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CustomerDetails.BusinessLogic.Extensions
 {
@@ -15,6 +10,8 @@ namespace CustomerDetails.BusinessLogic.Extensions
 		{
 			services.AddHttpClient<IProfilePictureService, ProfilePictureService>();
 			services.AddScoped<IProfilePictureService, ProfilePictureService>();
+
+			services.AddScoped<ICustomerService, CustomerService>();
 
 			return services;
 		}

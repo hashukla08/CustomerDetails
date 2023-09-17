@@ -15,7 +15,7 @@ namespace CustomerDetails.DataAccess.Extensions
 					options.UseSqlite(
 						connectionString);
 				});
-			services.AddScoped<ICustomerRepository, CustomerRespository>();
+			services.AddScoped<ICustomerRepository, CustomerRepository>();
 			return services;
 		}
 	}

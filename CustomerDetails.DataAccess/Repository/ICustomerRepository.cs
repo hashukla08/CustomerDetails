@@ -6,9 +6,9 @@ namespace CustomerDetails.API.DataAccess.Repository
 {
 	public interface ICustomerRepository:IRepository<Customer>
 	{
-		Task<Customer> UpdateAsync(Customer customer);
-		Task<IEnumerable<Customer>> GetAsync(int age);
-		Task<Customer?> GetAsync(Guid id);
+		Task<bool> UpdateAsync(Customer customer);
+		Task<IEnumerable<Customer>> GetCustomersByAgeAsync(int age);
+		Task<Customer?> GetCustomerByIdAsync(Guid id);
 	}
 
 }
