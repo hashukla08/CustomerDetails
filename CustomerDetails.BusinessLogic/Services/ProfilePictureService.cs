@@ -39,7 +39,7 @@ namespace CustomerDetails.BusinessLogic.Services
             builder.Query = $"name={Uri.EscapeDataString(CustomerName)}&format={Uri.EscapeDataString("svg")}";
             return await SendAsync(new APIRequest()
             {
-                requestType = SD.APIType.GET,
+                requestType = Constants.APIType.GET,
                 requestURL = builder.ToString()
             });
         }
@@ -56,10 +56,10 @@ namespace CustomerDetails.BusinessLogic.Services
 				}
 				message.Method = request.requestType switch
 				{
-					SD.APIType.POST => HttpMethod.Post,
-					SD.APIType.PUT => HttpMethod.Put,
-					SD.APIType.DELETE => HttpMethod.Delete,
-					SD.APIType.PATCH => HttpMethod.Patch,
+					Constants.APIType.POST => HttpMethod.Post,
+					Constants.APIType.PUT => HttpMethod.Put,
+					Constants.APIType.DELETE => HttpMethod.Delete,
+					Constants.APIType.PATCH => HttpMethod.Patch,
 					_ => HttpMethod.Get
 				};
 

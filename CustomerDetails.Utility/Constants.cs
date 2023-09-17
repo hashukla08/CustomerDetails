@@ -1,4 +1,4 @@
-﻿public static class SD
+﻿public static class Constants
 {
 	public static void Main()
 	{

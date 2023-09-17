@@ -1,4 +1,4 @@
-﻿using static SD;
+﻿using static Constants;
 
 namespace CustomerDetails.API.DataAccess.Models
 {

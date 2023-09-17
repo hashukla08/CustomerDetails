@@ -1,8 +1,8 @@
 ﻿using AutoMapper;
-using CustomerDetails.API.DataAccess.DTO;
 using CustomerDetails.API.DataAccess.Entities;
 using CustomerDetails.API.DataAccess.Models;
 using CustomerDetails.BusinessLogic.Interface;
+using CustomerDetails.DataAccess.Models;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 
 namespace CustomerDetails.API.Controllers
 {
-	[Route("api/customers")]
+    [Route("api/customers")]
 	[ApiController]
 	public class CustomerAPIController : ControllerBase
 	{
@@ -52,16 +52,16 @@ namespace CustomerDetails.API.Controllers
 			{
 				if (int.TryParse(idOrAge, out int age))
 				{
-
 					IEnumerable<Customer> customers = await _customerService.GetCustomersByAgeAsync(age);
 
 					if (customers == null || customers.Count() == 0)
 					{
 						_response.StatusCode = HttpStatusCode.NotFound;
-						_response.ErrorMessage = new List<string>() { "No record found" };
+						_response.ErrorMessage.Add("Customers with given age not found");
+						return _response;
 					}
-
-					return Ok(customers);
+					_response.Result = customers;
+					return _response;
 				}
 
 				else if (Guid.TryParse(idOrAge, out Guid customerId))
@@ -71,27 +71,34 @@ namespace CustomerDetails.API.Controllers
 					if (customer == null)
 					{
 						_response.StatusCode = HttpStatusCode.NotFound;
+						_response.ErrorMessage.Add("Customer with given customer id not found");
+						return _response;
 					}
 
-					return Ok(customer);
+					_response.Result = customer;
+					return _response;
 				}
 				else
 				{
-					//TODO: Invalid input
-					return BadRequest("Invalid ID or age.");
+					_response.StatusCode=HttpStatusCode.BadRequest;
+					_response.IsSuccess = false;
+					_response.ErrorMessage.Add("Invalid input");
+					return _response;
 				}
 			}
 			catch (Exception ex)
 			{
 				_response.IsSuccess = false;
+				_response.StatusCode = HttpStatusCode.InternalServerError;
 				_response.ErrorMessage = new List<string> { ex.ToString() };
+				return _response;
 			}
-			return _response;
+			
 		}
 
 
 		[HttpPost]
-		public async Task<ActionResult<APIResponse>> CreateCustomer([FromBody] CreateCustomerRequest createRequest)
+		public async Task<ActionResult<APIResponse>> CreateCustomer([FromBody] CustomerRequest createRequest)
 		{
 			try
 			{
@@ -140,7 +147,7 @@ namespace CustomerDetails.API.Controllers
 
 				await _customerService.AddCustomerAsync(customer);
 
-				_response.Result = _mapper.Map<CustomerDTO>(customer);
+				_response.Result = customer;
 				_response.StatusCode = HttpStatusCode.Created;
 			}
 			catch (Exception ex)
@@ -153,7 +160,7 @@ namespace CustomerDetails.API.Controllers
 		}
 
 		[HttpPatch]
-		public async Task<ActionResult<APIResponse>> UpdateCustomerDetails(Guid id, JsonPatchDocument<UpdateCustomerDTO> updatedCustomerDetails)
+		public async Task<ActionResult<APIResponse>> UpdateCustomerDetails(Guid id, JsonPatchDocument<CustomerRequest> updatedCustomerDetails)
 		{
 			try
 			{
@@ -168,19 +175,34 @@ namespace CustomerDetails.API.Controllers
 				if (customer == null)
 				{
 					_response.StatusCode = HttpStatusCode.NotFound;
+					_response.IsSuccess = false;
+					_response.ErrorMessage.Add("Data not found.");
 					return _response;
 				}
-				UpdateCustomerDTO updateCustomer = _mapper.Map<UpdateCustomerDTO>(customer);
-				updatedCustomerDetails.ApplyTo(updateCustomer);
 
-				Customer customerPatch = _mapper.Map<Customer>(updateCustomer);
-				await _customerService.UpdateAsync(customerPatch);
+				CustomerRequest customerToUpdate = _mapper.Map<CustomerRequest>(customer);
+				updatedCustomerDetails.ApplyTo(customerToUpdate);
+				bool reloadProfilePicture = false;
+
+				if (!customer.CustomerName.Equals(customerToUpdate.CustomerName, StringComparison.OrdinalIgnoreCase))
+					reloadProfilePicture = true;
+
+				customer.CustomerName = customerToUpdate.CustomerName;
+				customer.DateOfBirth = DateOnly.Parse(customerToUpdate.DateOfBirth);
 
 
-				return NoContent();
+				if(reloadProfilePicture)
+				{
+					customer.ProfileImage= await _pictureService.GetBase64EncodedSvgProfilePictureAsync(customer.CustomerName);
+				}
+				await _customerService.UpdateAsync(customer);
+
+				_response.Result = customer;
+				_response.StatusCode = HttpStatusCode.OK;
 			}
 			catch (Exception ex)
 			{
+				_response.StatusCode=HttpStatusCode.BadRequest;
 				_response.IsSuccess = false;
 				_response.ErrorMessage = new List<string> { ex.ToString() };
 			}

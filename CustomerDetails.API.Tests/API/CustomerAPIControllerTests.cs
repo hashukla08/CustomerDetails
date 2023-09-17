@@ -1,16 +1,17 @@
 ﻿using AutoMapper;
 using CustomerDetails.API.Controllers;
-using CustomerDetails.API.DataAccess.DTO;
 using CustomerDetails.API.DataAccess.Entities;
 using CustomerDetails.API.DataAccess.Models;
 using CustomerDetails.BusinessLogic.Interface;
+using CustomerDetails.DataAccess.Models;
 using FluentAssertions;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
 namespace CustomerDetails.API.Tests.API
 {
-	public class CustomerAPIControllerTests : TestFixture
+	public class CustomerAPIControllerTests
 	{
 		private readonly Mock<ICustomerService> mockCustomerService;
 		private readonly Mock<IMapper> mockMapper;
@@ -75,19 +76,19 @@ namespace CustomerDetails.API.Tests.API
 			Assert.IsType<ActionResult<APIResponse>>(response);
 			Assert.NotNull(response);
 		}
-		
+
 		[Fact]
 		public async Task CreateCustomerAsync_MissingDI_Pass()
 		{
 			try
 			{
 				//Arrange
-				var newCustomer = new CreateCustomerRequest
+				var newCustomer = new CustomerRequest
 				{
 					CustomerName = "John Doe",
 					DateOfBirth = Convert.ToString(new DateOnly(1981, 09, 09))
 				};
-				
+
 				mockCustomerService
 					.Setup(u => u.AddCustomerAsync(It.IsAny<Customer>()))
 					.Returns(Task.FromResult(newCustomer));
@@ -111,7 +112,7 @@ namespace CustomerDetails.API.Tests.API
 			try
 			{
 				//Arrange
-				var newCustomer = new CreateCustomerRequest
+				var newCustomer = new CustomerRequest
 				{
 					CustomerName = "John Doe",
 					DateOfBirth = Convert.ToString(new DateOnly(1981, 09, 09))
@@ -156,10 +157,10 @@ namespace CustomerDetails.API.Tests.API
 			try
 			{
 				//Arrange
-				CreateCustomerRequest newCustomer =
+				CustomerRequest newCustomer =
 					(string.IsNullOrWhiteSpace(CustomerName) && string.IsNullOrWhiteSpace(DoB)) ?
 					null! :
-					new CreateCustomerRequest
+					new CustomerRequest
 					{
 						CustomerName = CustomerName,
 						DateOfBirth = DoB
@@ -180,7 +181,7 @@ namespace CustomerDetails.API.Tests.API
 
 				//Act
 				var response = await controller.CreateCustomer(newCustomer);
-				
+
 				//Assert
 				mockCustomerService.Verify(x => x.GetCustomersByAgeAsync(It.IsAny<int>()), Times.Never);
 
@@ -205,7 +206,7 @@ namespace CustomerDetails.API.Tests.API
 			try
 			{
 				//Arrange
-				var newCustomer = new CreateCustomerRequest
+				var newCustomer = new CustomerRequest
 				{
 					CustomerName = "John Doe",
 					DateOfBirth = Convert.ToString(new DateOnly(1981, 09, 09))
@@ -236,7 +237,7 @@ namespace CustomerDetails.API.Tests.API
 						.Setup(u => u.GetBase64EncodedSvgProfilePictureAsync(It.IsAny<string>()))
 						.Returns(Task.FromResult(Guid.NewGuid().ToString()));
 				}
-				
+
 				//Act
 				var response = await controller.CreateCustomer(newCustomer);
 
@@ -272,15 +273,215 @@ namespace CustomerDetails.API.Tests.API
 				}
 			}
 		}
-		
-		[Fact]
-		public async Task GetCustomerByIdOrAge_Pass()
+
+		[Theory]
+		[InlineData("30", true)]
+		[InlineData("4E23F734-2F8C-41A3-8868-783971B793CD", true)]
+		[InlineData("-1", false)]
+		[InlineData("abc", false)]
+		[InlineData("21", false)]
+		[InlineData("8D76F3F2-4B64-4AD8-BA0E-8B75636853ED", false)]
+		public async Task GetCustomerByIdOrAge_Pass(string input, bool IsValid)
 		{
 			//Arrange
+			var customerList = new List<Customer>() {
+				new Customer
+				{
+					CustomerId = Guid.NewGuid(),
+					CustomerName = "John Doe",
+					DateOfBirth = new DateOnly(1981, 09, 09)
+				},
+				new Customer
+				{
+					CustomerId = Guid.NewGuid(),
+					CustomerName = "Daisy Duck",
+					DateOfBirth = new DateOnly(1971, 02, 02)
+				},
+				new Customer
+				{
+					CustomerId = Guid.Parse("4E23F734-2F8C-41A3-8868-783971B793CD"),
+					CustomerName = "Minnie Mouse",
+					DateOfBirth = new DateOnly(1993, 12, 08)
+				}
+			};
+
+			Guid tempGuid;
+			if (!Guid.TryParse(input, out tempGuid))
+				tempGuid = Guid.NewGuid();
+
+			mockCustomerService
+				.Setup(x => x.GetCustomerByIdAsync(It.IsAny<Guid>()))
+				.Returns(
+					Task.FromResult(customerList.FirstOrDefault(x => x.CustomerId == tempGuid))
+					);
+
+			int intInput;
+			if (!int.TryParse(input, out intInput))
+				intInput = 0;
+
+			DateOnly todaysDate = new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
+			mockCustomerService
+				.Setup(x => x.GetCustomersByAgeAsync(It.IsAny<int>()))
+				.Returns(
+					Task.FromResult(customerList.Where(x => (DateTime.Today.Year - x.DateOfBirth.Year) == intInput)));
 
 			//Act
+			var response = await controller.GetCustomerByIdOrAge(input);
+
 			//Assert
+			response.Should().NotBeNull();
+			response.Value.Should().NotBeNull();
+			if (IsValid)
+			{
+				response.Value.Result.Should().NotBeNull();
+				response.Value.ErrorMessage.Should().BeEmpty();
+			}
+			else
+			{
+				response.Value.ErrorMessage.Should().NotBeNull();
+			}
 		}
 
+
+		[Fact]
+		public async Task GetCustomerByIdOrAge_Exception()
+		{
+			string input = "10";
+			//Arrange
+			var customerList = new List<Customer>() {
+				new Customer
+				{
+					CustomerId = Guid.NewGuid(),
+					CustomerName = "John Doe",
+					DateOfBirth = new DateOnly(1981, 09, 09)
+				},
+				new Customer
+				{
+					CustomerId = Guid.NewGuid(),
+					CustomerName = "Daisy Duck",
+					DateOfBirth = new DateOnly(1971, 02, 02)
+				},
+				new Customer
+				{
+					CustomerId = Guid.Parse("4E23F734-2F8C-41A3-8868-783971B793CD"),
+					CustomerName = "Minnie Mouse",
+					DateOfBirth = new DateOnly(1993, 12, 08)
+				}
+			};
+
+			Guid tempGuid;
+			if (!Guid.TryParse(input, out tempGuid))
+				tempGuid = Guid.NewGuid();
+
+			mockCustomerService
+				.Setup(x => x.GetCustomerByIdAsync(It.IsAny<Guid>()))
+				.Returns(
+					Task.FromResult(customerList.FirstOrDefault(x => x.CustomerId == tempGuid))
+					);
+
+			int intInput;
+			if (!int.TryParse(input, out intInput))
+				intInput = 0;
+
+			DateOnly todaysDate = new DateOnly(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
+			mockCustomerService
+				.Setup(x => x.GetCustomersByAgeAsync(It.IsAny<int>()))
+				.Throws(new Exception("Customer Service is down."));
+
+			//Act
+			var response = await controller.GetCustomerByIdOrAge(input);
+
+			//Assert
+			response.Should().NotBeNull();
+			response.Value.Should().NotBeNull();
+			response.Value.ErrorMessage.Should().NotBeNull();
+		}
+
+		[Fact]
+		public async Task UpdateCustomerDetails_Pass()
+		{
+			//Arrange
+			Guid requestId = Guid.NewGuid();
+
+			var patchDocument = new JsonPatchDocument<CustomerRequest>();
+			patchDocument.Replace(r => r.CustomerName, "TestName");
+
+			var customer = new Customer
+			{
+				CustomerId = requestId,
+				CustomerName = "Daisy Duck",
+				DateOfBirth = new DateOnly(1988, 03, 07),
+				ProfileImage = "randomBytes"
+			};
+
+			mockCustomerService
+				.Setup(x => x.GetCustomerByIdAsync(It.IsAny<Guid>()))
+				.Returns(Task.FromResult(customer)!);
+
+			mockMapper
+            .Setup(mapper => mapper.Map<CustomerRequest>(It.IsAny<Customer>()))
+			.Returns(new CustomerRequest 
+			{ 
+				CustomerName = customer.CustomerName, 
+				DateOfBirth = customer.DateOfBirth.ToString() 
+			});
+
+			mockProfilePictureService
+				.Setup(x => x.GetBase64EncodedSvgProfilePictureAsync(It.IsAny<string>()))
+				.Returns(Task.FromResult("randomStringBytes"));
+
+			//Act
+
+			var response = await controller.UpdateCustomerDetails(requestId, patchDocument);
+
+			//Assert
+
+			response.Should().NotBeNull();
+			response.Value.Result.Should().NotBeNull();
+			response.Value.ErrorMessage.Should().BeNullOrEmpty();
+		}
+
+		[Fact]
+		public async Task UpdateCustomerDetails_NegativeTests()
+		{
+			//Arrange
+			Guid requestId = Guid.NewGuid();
+
+			var patchDocument = new JsonPatchDocument<CustomerRequest>();
+			patchDocument.Replace(r => r.CustomerName, "TestName");
+
+			var customer = new Customer
+			{
+				CustomerId = Guid.NewGuid(),
+				CustomerName = "Daisy Duck",
+				DateOfBirth = new DateOnly(1988, 03, 07),
+				ProfileImage = "randomBytes"
+			};
+
+			mockCustomerService
+				.Setup(x => x.GetCustomerByIdAsync(It.IsAny<Guid>()));
+				//.Returns(Task.FromResult(customer)!);
+
+			mockMapper
+			.Setup(mapper => mapper.Map<CustomerRequest>(It.IsAny<Customer>()))
+			.Returns(new CustomerRequest
+			{
+				CustomerName = customer.CustomerName,
+				DateOfBirth = customer.DateOfBirth.ToString()
+			});
+
+			mockProfilePictureService
+				.Setup(x => x.GetBase64EncodedSvgProfilePictureAsync(It.IsAny<string>()))
+				.Returns(Task.FromResult("randomStringBytes"));
+
+			//Act
+
+			var response = await controller.UpdateCustomerDetails(requestId, patchDocument);
+
+			//Assert
+
+			response.Should().NotBeNull();
+			response.Value.ErrorMessage.Should().NotBeNullOrEmpty();
+		}
 	}
 }
