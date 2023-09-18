@@ -7,16 +7,16 @@ using System.Text;
 
 namespace CustomerDetails.BusinessLogic.Services
 {
-    public class ProfilePictureService : IProfilePictureService
-    {
-        private readonly string? serviceUrl;
+	public class ProfilePictureService : IProfilePictureService
+	{
+		private readonly string? serviceUrl;
 		private readonly HttpClient _httpClient;
 
 		public ProfilePictureService(
-            IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
-        {
-            serviceUrl = configuration.GetValue<string>("UIAvatar:BaseUrl");
+			IHttpClientFactory httpClientFactory,
+			IConfiguration configuration)
+		{
+			serviceUrl = configuration.GetValue<string>("UIAvatar:BaseUrl");
 			_httpClient = httpClientFactory.CreateClient("CustomerClient");
 		}
 
@@ -32,17 +32,17 @@ namespace CustomerDetails.BusinessLogic.Services
 			return profilePicture;
 		}
 
-        private async Task<string> GetProfilePictureAsync(string CustomerName)
-        {
-            var builder = new UriBuilder(serviceUrl);
-            builder.Path = "/api/";
-            builder.Query = $"name={Uri.EscapeDataString(CustomerName)}&format={Uri.EscapeDataString("svg")}";
-            return await SendAsync(new APIRequest()
-            {
-                requestType = Constants.APIType.GET,
-                requestURL = builder.ToString()
-            });
-        }
+		private async Task<string> GetProfilePictureAsync(string CustomerName)
+		{
+			var builder = new UriBuilder(serviceUrl);
+			builder.Path = "/api/";
+			builder.Query = $"name={Uri.EscapeDataString(CustomerName)}&format={Uri.EscapeDataString("svg")}";
+			return await SendAsync(new APIRequest()
+			{
+				requestType = Constants.APIType.GET,
+				requestURL = builder.ToString()
+			});
+		}
 		private async Task<string> SendAsync(APIRequest request)
 		{
 			try
@@ -85,13 +85,43 @@ namespace CustomerDetails.BusinessLogic.Services
 		private string SanitizeSVG(string svgContent)
 		{
 			var sanitizer = new HtmlSanitizer();
+
 			// Allow SVG elements and basic attributes
 			sanitizer.AllowedTags.Add("svg");
-			sanitizer.AllowedAttributes.Add("width");
-			sanitizer.AllowedAttributes.Add("height");
-			// Add more allowed attributes as needed
+			sanitizer.AllowedTags.Add("circle");
+			sanitizer.AllowedTags.Add("text");
+			sanitizer.AllowedTags.Add("rect");
 
+			// Remove potentially dangerous attributes
+			RemoveEventAttributes(sanitizer);
+			RemoveScriptAttributes(sanitizer);
+			RemoveExternalResourceAttributes(sanitizer);
+
+			// Sanitize the SVG content
 			return sanitizer.Sanitize(svgContent);
 		}
+
+		private void RemoveEventAttributes(HtmlSanitizer sanitizer)
+		{
+			// Remove event attributes
+			sanitizer.AllowedAttributes.Remove("onload");
+			sanitizer.AllowedAttributes.Remove("onunload");
+			// Add other event attributes here
+		}
+
+		private void RemoveScriptAttributes(HtmlSanitizer sanitizer)
+		{
+			// Remove script-related attributes
+			sanitizer.AllowedAttributes.Remove("script");
+			sanitizer.AllowedAttributes.Remove("xlink:href");
+		}
+
+		private void RemoveExternalResourceAttributes(HtmlSanitizer sanitizer)
+		{
+			// Remove attributes that reference external resources
+			sanitizer.AllowedAttributes.Remove("xlink:href");
+		}
+
+		
 	}
 }

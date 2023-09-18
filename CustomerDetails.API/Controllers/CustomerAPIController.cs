@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 
 namespace CustomerDetails.API.Controllers
 {
-    [Route("api/customers")]
+	[Route("api/customers")]
 	[ApiController]
 	public class CustomerAPIController : ControllerBase
 	{
@@ -18,6 +18,8 @@ namespace CustomerDetails.API.Controllers
 		private readonly IMapper _mapper;
 		protected APIResponse _response;
 		private readonly IProfilePictureService _pictureService;
+
+		private static readonly Regex _nameRegex = new Regex(@"^[A-Za-z]+( [A-Za-z]+)*$");
 
 		public CustomerAPIController(ICustomerService customerService, IMapper mapper, IProfilePictureService pictureService)
 		{
@@ -33,9 +35,17 @@ namespace CustomerDetails.API.Controllers
 			try
 			{
 				IEnumerable<Customer> getAllCustomers = await _customerService.GetAllAsync();
-				_response.StatusCode = HttpStatusCode.OK;
-				_response.Result = getAllCustomers;
-				return Ok(_response);
+				if (getAllCustomers != null && getAllCustomers.Any())
+				{
+					_response.StatusCode = HttpStatusCode.OK;
+					_response.Result = getAllCustomers;
+				}
+				else
+				{
+					_response.StatusCode = HttpStatusCode.NoContent;
+					
+				}
+				
 			}
 			catch (Exception ex)
 			{
@@ -110,8 +120,7 @@ namespace CustomerDetails.API.Controllers
 					return _response;
 				}
 
-				Regex regex = new Regex(@"^[A-Za-z]+( [A-Za-z]+)*$");
-				if (!regex.IsMatch(createRequest.CustomerName))
+				if (!_nameRegex.IsMatch(createRequest.CustomerName))
 				{
 					_response.ErrorMessage.Add("Customer Name cannot have special characters, numbers, leading and trailing spaces and allows one blank space between words.");
 				}
@@ -125,6 +134,11 @@ namespace CustomerDetails.API.Controllers
 				else if (!DateOnly.TryParse(createRequest.DateOfBirth, out dob))
 				{
 					_response.ErrorMessage.Add("Invalid Date Format. Please use ISO8601 date format only.");
+				}
+
+				if(dob.ToDateTime(new TimeOnly()) >= DateTime.Today)
+				{
+					_response.ErrorMessage.Add("Date of Birth cannot be a future date.");
 				}
 
 				if (_response.ErrorMessage.Any())
@@ -183,12 +197,30 @@ namespace CustomerDetails.API.Controllers
 				CustomerRequest customerToUpdate = _mapper.Map<CustomerRequest>(customer);
 				updatedCustomerDetails.ApplyTo(customerToUpdate);
 				bool reloadProfilePicture = false;
+				var dateOfBirth = DateOnly.Parse(customerToUpdate.DateOfBirth);
+
+				if (!_nameRegex.IsMatch(customerToUpdate.CustomerName))
+				{
+					_response.ErrorMessage.Add("Customer Name cannot have special characters, numbers, leading and trailing spaces and allows one blank space between words.");
+				}
+
+				if (dateOfBirth.ToDateTime(new TimeOnly()) >= DateTime.Today)
+				{
+					_response.ErrorMessage.Add("Date of Birth cannot be a future date.");
+				}
+
+				if (_response.ErrorMessage is not null && _response.ErrorMessage.Any())
+				{
+					_response.StatusCode = HttpStatusCode.BadRequest;
+					_response.IsSuccess = false;
+					return _response;
+				}
 
 				if (!customer.CustomerName.Equals(customerToUpdate.CustomerName, StringComparison.OrdinalIgnoreCase))
 					reloadProfilePicture = true;
 
 				customer.CustomerName = customerToUpdate.CustomerName;
-				customer.DateOfBirth = DateOnly.Parse(customerToUpdate.DateOfBirth);
+				customer.DateOfBirth = dateOfBirth;
 
 
 				if(reloadProfilePicture)
@@ -209,5 +241,7 @@ namespace CustomerDetails.API.Controllers
 			return _response;
 
 		}
+
+		
 	}
 }
