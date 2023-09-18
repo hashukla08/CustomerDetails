@@ -483,5 +483,49 @@ namespace CustomerDetails.API.Tests.API
 			response.Should().NotBeNull();
 			response.Value.ErrorMessage.Should().NotBeNullOrEmpty();
 		}
+
+		[Fact]
+		public async Task UpdateCustomerDetails_InvalidInput()
+		{
+			//Arrange
+			Guid requestId = Guid.NewGuid();
+
+			var patchDocument = new JsonPatchDocument<CustomerRequest>();
+			patchDocument.Replace(r => r.DateOfBirth, DateTime.Today.AddYears(1).ToShortDateString());
+			patchDocument.Replace(r => r.CustomerName, "");
+
+			var customer = new Customer
+			{
+				CustomerId = Guid.NewGuid(),
+				CustomerName = "Daisy Duck",
+				DateOfBirth = new DateOnly(1988, 03, 07),
+				ProfileImage = "randomBytes"
+			};
+
+			mockCustomerService
+				.Setup(x => x.GetCustomerByIdAsync(It.IsAny<Guid>()))
+				.Returns(Task.FromResult(customer)!);
+
+			mockMapper
+			.Setup(mapper => mapper.Map<CustomerRequest>(It.IsAny<Customer>()))
+			.Returns(new CustomerRequest
+			{
+				CustomerName = customer.CustomerName,
+				DateOfBirth = customer.DateOfBirth.ToString()
+			});
+
+			mockProfilePictureService
+				.Setup(x => x.GetBase64EncodedSvgProfilePictureAsync(It.IsAny<string>()))
+				.Returns(Task.FromResult("randomStringBytes"));
+
+			//Act
+
+			var response = await controller.UpdateCustomerDetails(requestId, patchDocument);
+
+			//Assert
+
+			response.Should().NotBeNull();
+			response.Value.ErrorMessage.Should().NotBeNullOrEmpty();
+		}
 	}
 }
